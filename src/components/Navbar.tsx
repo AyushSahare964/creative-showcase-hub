@@ -50,7 +50,7 @@ export const Navbar = () => {
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
               <Play className="w-5 h-5 text-primary-foreground fill-current" />
             </div>
-            <span className="font-display text-2xl tracking-wider">VIDEOCRAFT</span>
+            <span className="font-display text-2xl tracking-wider">EDITVERSE</span>
           </Link>
 
           {/* Desktop Nav */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -6,7 +6,6 @@ import {
   Users, 
   Settings, 
   Plus, 
-  Edit2, 
   Trash2, 
   Mail, 
   Phone, 
@@ -14,14 +13,18 @@ import {
   Eye,
   LogOut,
   Menu,
-  X
+  X,
+  Upload,
+  Image
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useData } from "@/context/DataContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -34,10 +37,16 @@ type Tab = "overview" | "videos" | "submissions" | "settings";
 
 const Dashboard = () => {
   const { videos, submissions, profile, addVideo, updateVideo, deleteVideo, updateSubmissionStatus, setProfile } = useData();
+  const { user, loading, isEditor, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>("");
   const [newVideo, setNewVideo] = useState({
     title: "",
     description: "",
@@ -46,6 +55,81 @@ const Dashboard = () => {
     duration: "",
     thumbnail: "",
   });
+
+  // Redirect if not authenticated or not the editor
+  useEffect(() => {
+    if (!loading && (!user || !isEditor)) {
+      navigate("/auth");
+    }
+  }, [user, loading, isEditor, navigate]);
+
+  const handleLogout = async () => {
+    await signOut();
+    toast({
+      title: "Logged out",
+      description: "You have been signed out successfully.",
+    });
+    navigate("/");
+  };
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `thumbnails/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("video-thumbnails")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("video-thumbnails")
+        .getPublicUrl(filePath);
+
+      setNewVideo({ ...newVideo, thumbnail: publicUrl });
+      setThumbnailPreview(publicUrl);
+      
+      toast({
+        title: "Thumbnail uploaded",
+        description: "Your thumbnail has been uploaded successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload thumbnail.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleAddVideo = () => {
     if (!newVideo.title || !newVideo.videoUrl) {
@@ -65,6 +149,7 @@ const Dashboard = () => {
       duration: "",
       thumbnail: "",
     });
+    setThumbnailPreview("");
     setIsAddVideoOpen(false);
     toast({
       title: "Video Added",
@@ -80,6 +165,20 @@ const Dashboard = () => {
   ];
 
   const newSubmissions = submissions.filter((s) => s.status === "new").length;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Don't render if not editor
+  if (!isEditor) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -99,7 +198,7 @@ const Dashboard = () => {
       >
         <div className="p-6">
           <Link to="/" className="font-display text-2xl tracking-wider text-gradient">
-            VIDEOCRAFT
+            EDITVERSE
           </Link>
           <p className="text-sm text-muted-foreground mt-1">Editor Dashboard</p>
         </div>
@@ -129,13 +228,21 @@ const Dashboard = () => {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border space-y-2">
           <Link to="/">
             <Button variant="ghost" className="w-full justify-start gap-3">
               <Eye className="w-5 h-5" />
               View Portfolio
             </Button>
           </Link>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3 text-destructive hover:text-destructive"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-5 h-5" />
+            Sign Out
+          </Button>
         </div>
       </aside>
 
@@ -147,7 +254,10 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="font-display text-3xl mb-8">Dashboard Overview</h1>
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="font-display text-3xl">Dashboard Overview</h1>
+              <span className="text-sm text-muted-foreground">Welcome, Sanshag!</span>
+            </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="glass-card rounded-xl p-6">
@@ -218,11 +328,55 @@ const Dashboard = () => {
                     Add Video
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="font-display text-2xl">Add New Video</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
+                    {/* Thumbnail Upload */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Thumbnail</label>
+                      <div 
+                        className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {thumbnailPreview ? (
+                          <div className="relative">
+                            <img 
+                              src={thumbnailPreview} 
+                              alt="Thumbnail preview" 
+                              className="w-full aspect-video object-cover rounded-lg"
+                            />
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-lg">
+                              <span className="text-white text-sm">Click to change</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-8">
+                            {uploading ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                                <span className="text-sm text-muted-foreground">Uploading...</span>
+                              </div>
+                            ) : (
+                              <>
+                                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                                <span className="text-sm text-muted-foreground">Click to upload thumbnail</span>
+                                <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 5MB</p>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleThumbnailUpload}
+                        />
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium mb-2">Title *</label>
                       <Input
@@ -283,8 +437,12 @@ const Dashboard = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {videos.map((video) => (
                 <div key={video.id} className="glass-card rounded-xl overflow-hidden">
-                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <Film className="w-12 h-12 text-primary/50" />
+                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center overflow-hidden">
+                    {video.thumbnail ? (
+                      <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <Film className="w-12 h-12 text-primary/50" />
+                    )}
                   </div>
                   <div className="p-4">
                     <span className="text-xs text-primary">{video.category}</span>
@@ -435,6 +593,18 @@ const Dashboard = () => {
                     value={profile.bio}
                     onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                     rows={4}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Skills (comma separated)</label>
+                  <Input
+                    value={profile.skills?.join(", ") || ""}
+                    onChange={(e) => setProfile({ 
+                      ...profile, 
+                      skills: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
+                    })}
+                    placeholder="Adobe Premiere Pro, After Effects, DaVinci Resolve"
                   />
                 </div>
 
