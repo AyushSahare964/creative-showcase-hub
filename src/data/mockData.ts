@@ -7,15 +7,25 @@ import videoThumb5 from "@/assets/video-thumb-5.jpg";
 import videoThumb6 from "@/assets/video-thumb-6.jpg";
 
 export const editorProfile: EditorProfile = {
-  name: "Alex Rivera",
+  name: "Sanshag Karwade",
   title: "Professional Video Editor & Motion Designer",
-  bio: "With over 8 years of experience in video editing and motion graphics, I transform raw footage into compelling visual stories. Specializing in commercial ads, music videos, documentaries, and social media content.",
+  bio: "From India with passion for storytelling. I transform raw footage into compelling visual narratives that captivate audiences. Specializing in commercial ads, music videos, documentaries, and social media content with a unique creative vision.",
   avatar: "",
-  experience: "8+ Years",
-  projectsCompleted: 500,
-  email: "alex@videocraft.studio",
-  phone: "+1 (555) 123-4567",
-  location: "Los Angeles, CA",
+  experience: "5+ Years",
+  projectsCompleted: 300,
+  email: "sanshagkarwade@gmail.com",
+  phone: "+91 98765 43210",
+  location: "India",
+  skills: [
+    "Adobe Premiere Pro",
+    "After Effects",
+    "DaVinci Resolve",
+    "Color Grading",
+    "Motion Graphics",
+    "Sound Design",
+    "VFX Compositing",
+    "Storytelling"
+  ],
   socialLinks: {
     youtube: "https://youtube.com",
     instagram: "https://instagram.com",

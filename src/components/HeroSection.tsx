@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Play, ChevronDown, Award, Film, Clock } from "lucide-react";
+import { Play, ChevronDown, Film, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/context/DataContext";
 
@@ -87,7 +87,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="grid grid-cols-3 gap-8 max-w-lg mx-auto"
+            className="grid grid-cols-2 gap-8 max-w-md mx-auto"
           >
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
@@ -103,13 +103,23 @@ export const HeroSection = () => {
               </div>
               <span className="text-sm text-muted-foreground">Projects</span>
             </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Award className="w-5 h-5 text-primary" />
-                <span className="font-display text-3xl">15+</span>
-              </div>
-              <span className="text-sm text-muted-foreground">Awards</span>
-            </div>
+          </motion.div>
+
+          {/* Skills */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-wrap justify-center gap-3 mt-10"
+          >
+            {profile.skills?.map((skill, index) => (
+              <span
+                key={index}
+                className="px-4 py-2 rounded-full bg-card/50 border border-border/50 backdrop-blur-sm text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+              >
+                {skill}
+              </span>
+            ))}
           </motion.div>
         </div>
       </div>

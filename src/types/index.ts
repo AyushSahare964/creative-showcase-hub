@@ -31,6 +31,7 @@ export interface EditorProfile {
   email: string;
   phone: string;
   location: string;
+  skills: string[];
   socialLinks: {
     youtube?: string;
     instagram?: string;
