@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Upload,
-  Image
+  Link as LinkIcon,
+  Video
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -34,19 +35,25 @@ import {
 } from "@/components/ui/dialog";
 
 type Tab = "overview" | "videos" | "submissions" | "settings";
+type VideoInputMode = "url" | "upload";
 
 const Dashboard = () => {
-  const { videos, submissions, profile, addVideo, updateVideo, deleteVideo, updateSubmissionStatus, setProfile } = useData();
+  const { videos, submissions, profile, addVideo, deleteVideo, updateSubmissionStatus, setProfile } = useData();
   const { user, loading, isEditor, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>("");
+  const [videoInputMode, setVideoInputMode] = useState<VideoInputMode>("upload");
+  const [videoFileName, setVideoFileName] = useState<string>("");
   const [newVideo, setNewVideo] = useState({
     title: "",
     description: "",
@@ -76,7 +83,6 @@ const Dashboard = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       toast({
         title: "Invalid file",
@@ -86,7 +92,6 @@ const Dashboard = () => {
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -96,7 +101,7 @@ const Dashboard = () => {
       return;
     }
 
-    setUploading(true);
+    setUploadingThumbnail(true);
 
     try {
       const fileExt = file.name.split(".").pop();
@@ -127,7 +132,76 @@ const Dashboard = () => {
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
+      setUploadingThumbnail(false);
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload a video file (MP4, WebM, MOV, AVI).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Max 500MB for videos
+    if (file.size > 500 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload a video smaller than 500MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingVideo(true);
+    setVideoFileName(file.name);
+    setVideoUploadProgress(0);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
+
+      // Simulate progress (Supabase doesn't expose upload progress for small files)
+      const progressInterval = setInterval(() => {
+        setVideoUploadProgress((prev) => Math.min(prev + 10, 90));
+      }, 200);
+
+      const { error: uploadError } = await supabase.storage
+        .from("videos")
+        .upload(filePath, file);
+
+      clearInterval(progressInterval);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("videos")
+        .getPublicUrl(filePath);
+
+      setNewVideo({ ...newVideo, videoUrl: publicUrl });
+      setVideoUploadProgress(100);
+      
+      toast({
+        title: "Video uploaded!",
+        description: "Your video has been uploaded successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload video.",
+        variant: "destructive",
+      });
+      setVideoFileName("");
+    } finally {
+      setUploadingVideo(false);
     }
   };
 
@@ -135,7 +209,7 @@ const Dashboard = () => {
     if (!newVideo.title || !newVideo.videoUrl) {
       toast({
         title: "Error",
-        description: "Please fill in required fields",
+        description: "Please fill in title and add a video",
         variant: "destructive",
       });
       return;
@@ -150,11 +224,27 @@ const Dashboard = () => {
       thumbnail: "",
     });
     setThumbnailPreview("");
+    setVideoFileName("");
+    setVideoUploadProgress(0);
     setIsAddVideoOpen(false);
     toast({
       title: "Video Added",
       description: "Your new video has been added to the portfolio.",
     });
+  };
+
+  const resetForm = () => {
+    setNewVideo({
+      title: "",
+      description: "",
+      videoUrl: "",
+      category: "Commercial",
+      duration: "",
+      thumbnail: "",
+    });
+    setThumbnailPreview("");
+    setVideoFileName("");
+    setVideoUploadProgress(0);
   };
 
   const tabs = [
@@ -166,7 +256,6 @@ const Dashboard = () => {
 
   const newSubmissions = submissions.filter((s) => s.status === "new").length;
 
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -175,7 +264,6 @@ const Dashboard = () => {
     );
   }
 
-  // Don't render if not editor
   if (!isEditor) {
     return null;
   }
@@ -197,8 +285,11 @@ const Dashboard = () => {
         }`}
       >
         <div className="p-6">
-          <Link to="/" className="font-display text-2xl tracking-wider text-gradient">
-            EDITVERSE
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+              <span className="font-display text-sm text-primary-foreground font-bold">SK</span>
+            </div>
+            <span className="font-display text-lg tracking-wider text-gradient">SANSHAG</span>
           </Link>
           <p className="text-sm text-muted-foreground mt-1">Editor Dashboard</p>
         </div>
@@ -321,7 +412,10 @@ const Dashboard = () => {
           >
             <div className="flex items-center justify-between mb-8">
               <h1 className="font-display text-3xl">Manage Videos</h1>
-              <Dialog open={isAddVideoOpen} onOpenChange={setIsAddVideoOpen}>
+              <Dialog open={isAddVideoOpen} onOpenChange={(open) => {
+                setIsAddVideoOpen(open);
+                if (!open) resetForm();
+              }}>
                 <DialogTrigger asChild>
                   <Button variant="hero">
                     <Plus className="w-5 h-5" />
@@ -333,12 +427,109 @@ const Dashboard = () => {
                     <DialogTitle className="font-display text-2xl">Add New Video</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 mt-4">
+                    {/* Video Input Mode Toggle */}
+                    <div>
+                      <label className="block text-sm font-medium mb-3">Video Source *</label>
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVideoInputMode("upload");
+                            setNewVideo({ ...newVideo, videoUrl: "" });
+                            setVideoFileName("");
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${
+                            videoInputMode === "upload"
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-secondary/50 border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVideoInputMode("url");
+                            setNewVideo({ ...newVideo, videoUrl: "" });
+                            setVideoFileName("");
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${
+                            videoInputMode === "url"
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-secondary/50 border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <LinkIcon className="w-4 h-4" />
+                          URL / Embed
+                        </button>
+                      </div>
+
+                      {videoInputMode === "upload" ? (
+                        <div 
+                          className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                          onClick={() => !uploadingVideo && videoInputRef.current?.click()}
+                        >
+                          {uploadingVideo ? (
+                            <div className="space-y-3">
+                              <Video className="w-10 h-10 mx-auto text-primary animate-pulse" />
+                              <p className="text-sm text-muted-foreground">Uploading {videoFileName}...</p>
+                              <div className="w-full bg-secondary rounded-full h-2">
+                                <div 
+                                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${videoUploadProgress}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">{videoUploadProgress}%</p>
+                            </div>
+                          ) : videoFileName && newVideo.videoUrl ? (
+                            <div className="space-y-2">
+                              <Video className="w-10 h-10 mx-auto text-green-500" />
+                              <p className="text-sm text-foreground font-medium">{videoFileName}</p>
+                              <p className="text-xs text-green-500">Upload complete!</p>
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNewVideo({ ...newVideo, videoUrl: "" });
+                                  setVideoFileName("");
+                                  setVideoUploadProgress(0);
+                                }}
+                                className="text-xs text-muted-foreground underline"
+                              >
+                                Remove and upload different video
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <Video className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                              <p className="text-sm text-muted-foreground">Click to upload video</p>
+                              <p className="text-xs text-muted-foreground mt-1">MP4, WebM, MOV up to 500MB</p>
+                            </>
+                          )}
+                          <input
+                            ref={videoInputRef}
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                            className="hidden"
+                            onChange={handleVideoUpload}
+                          />
+                        </div>
+                      ) : (
+                        <Input
+                          value={newVideo.videoUrl}
+                          onChange={(e) => setNewVideo({ ...newVideo, videoUrl: e.target.value })}
+                          placeholder="YouTube, Vimeo, or direct video URL"
+                        />
+                      )}
+                    </div>
+
                     {/* Thumbnail Upload */}
                     <div>
                       <label className="block text-sm font-medium mb-2">Thumbnail</label>
                       <div 
                         className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => thumbnailInputRef.current?.click()}
                       >
                         {thumbnailPreview ? (
                           <div className="relative">
@@ -352,8 +543,8 @@ const Dashboard = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className="py-8">
-                            {uploading ? (
+                          <div className="py-6">
+                            {uploadingThumbnail ? (
                               <div className="flex flex-col items-center gap-2">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
                                 <span className="text-sm text-muted-foreground">Uploading...</span>
@@ -361,14 +552,14 @@ const Dashboard = () => {
                             ) : (
                               <>
                                 <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                                <span className="text-sm text-muted-foreground">Click to upload thumbnail</span>
+                                <span className="text-sm text-muted-foreground">Upload thumbnail (optional)</span>
                                 <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 5MB</p>
                               </>
                             )}
                           </div>
                         )}
                         <input
-                          ref={fileInputRef}
+                          ref={thumbnailInputRef}
                           type="file"
                           accept="image/*"
                           className="hidden"
@@ -385,14 +576,7 @@ const Dashboard = () => {
                         placeholder="Video title"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Video URL *</label>
-                      <Input
-                        value={newVideo.videoUrl}
-                        onChange={(e) => setNewVideo({ ...newVideo, videoUrl: e.target.value })}
-                        placeholder="YouTube embed URL"
-                      />
-                    </div>
+                    
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">Category</label>
@@ -426,7 +610,12 @@ const Dashboard = () => {
                         rows={3}
                       />
                     </div>
-                    <Button variant="hero" className="w-full" onClick={handleAddVideo}>
+                    <Button 
+                      variant="hero" 
+                      className="w-full" 
+                      onClick={handleAddVideo}
+                      disabled={uploadingVideo || uploadingThumbnail}
+                    >
                       Add Video
                     </Button>
                   </div>

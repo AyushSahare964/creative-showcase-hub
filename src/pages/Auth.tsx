@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,14 +119,15 @@ const Auth = () => {
       >
         <div className="glass-card rounded-2xl p-8">
           {/* Logo */}
-          <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
-              <Play className="w-6 h-6 text-primary-foreground fill-current" />
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/25">
+              <span className="font-display text-2xl text-primary-foreground font-bold">SK</span>
             </div>
-            <span className="font-display text-3xl tracking-wider">EDITVERSE</span>
           </div>
-
-          <h1 className="font-display text-2xl text-center mb-2">Editor Dashboard</h1>
+          <h1 className="font-display text-2xl text-center tracking-wider">SANSHAG KARWADE</h1>
+          <p className="text-muted-foreground text-center text-sm mb-8 mt-2">
+            Editor Dashboard Access
+          </p>
           <p className="text-muted-foreground text-center text-sm mb-8">
             Access restricted to Sanshag Karwade
           </p>

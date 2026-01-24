@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import emailjs from "@emailjs/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,18 +18,27 @@ const projectTypes = [
   "Other",
 ];
 
-const budgetRanges = [
-  "Under $1,000",
-  "$1,000 - $2,500",
-  "$2,500 - $5,000",
-  "$5,000 - $10,000",
-  "$10,000+",
+const budgetRangesINR = [
+  "Under ₹50,000",
+  "₹50,000 - ₹1,00,000",
+  "₹1,00,000 - ₹2,50,000",
+  "₹2,50,000 - ₹5,00,000",
+  "₹5,00,000+",
+];
+
+const budgetRangesUSD = [
+  "Under $500",
+  "$500 - $1,500",
+  "$1,500 - $3,000",
+  "$3,000 - $5,000",
+  "$5,000+",
 ];
 
 export const ContactForm = () => {
   const { addSubmission, profile } = useData();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -39,11 +48,18 @@ export const ContactForm = () => {
     message: "",
   });
 
+  const budgetRanges = currency === "INR" ? budgetRangesINR : budgetRangesUSD;
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCurrencyChange = (newCurrency: "INR" | "USD") => {
+    setCurrency(newCurrency);
+    setFormData((prev) => ({ ...prev, budget: "" })); // Reset budget when currency changes
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,7 +108,7 @@ export const ContactForm = () => {
       console.log("EmailJS not configured - submission saved locally");
       toast({
         title: "Request Received!",
-        description: "Your project details have been saved. Configure EmailJS for email notifications.",
+        description: "Your project details have been saved. I'll contact you soon!",
       });
     } finally {
       setIsSubmitting(false);
@@ -138,7 +154,7 @@ export const ContactForm = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="John Doe"
+                  placeholder="Your full name"
                   required
                 />
               </div>
@@ -151,7 +167,7 @@ export const ContactForm = () => {
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="john@example.com"
+                  placeholder="you@example.com"
                   required
                 />
               </div>
@@ -164,7 +180,7 @@ export const ContactForm = () => {
                   type="tel"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="+91 98765 43210"
                 />
               </div>
 
@@ -189,7 +205,34 @@ export const ContactForm = () => {
 
               {/* Budget */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2">Budget Range</label>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium">Budget Range</label>
+                  {/* Currency Toggle */}
+                  <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+                    <button
+                      type="button"
+                      onClick={() => handleCurrencyChange("INR")}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        currency === "INR"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      ₹ INR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCurrencyChange("USD")}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        currency === "USD"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      $ USD
+                    </button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {budgetRanges.map((range) => (
                     <button
