@@ -1,4 +1,4 @@
-import { Play, Youtube, Instagram, Linkedin, Twitter, Heart } from "lucide-react";
+import { Youtube, Instagram, Linkedin, Twitter, Heart } from "lucide-react";
 import { useData } from "@/context/DataContext";
 
 export const Footer = () => {
@@ -9,11 +9,11 @@ export const Footer = () => {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Play className="w-5 h-5 text-primary-foreground fill-current" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/25">
+              <span className="font-display text-lg text-primary-foreground font-bold">SK</span>
             </div>
-            <span className="font-display text-2xl tracking-wider">EDITVERSE</span>
+            <span className="font-display text-xl tracking-wider">SANSHAG KARWADE</span>
           </div>
 
           {/* Social Links */}

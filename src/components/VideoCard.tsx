@@ -2,11 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Play, X, Clock, Tag } from "lucide-react";
 import { Video } from "@/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { VideoPlayerModal } from "./VideoPlayerModal";
 
 interface VideoCardProps {
   video: Video;
@@ -51,10 +47,12 @@ export const VideoCard = ({ video, index }: VideoCardProps) => {
           </div>
 
           {/* Duration Badge */}
-          <div className="absolute top-3 right-3 px-2 py-1 rounded bg-background/80 backdrop-blur-sm text-xs flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {video.duration}
-          </div>
+          {video.duration && (
+            <div className="absolute top-3 right-3 px-2 py-1 rounded bg-background/80 backdrop-blur-sm text-xs flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {video.duration}
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -74,36 +72,12 @@ export const VideoCard = ({ video, index }: VideoCardProps) => {
         </div>
       </motion.div>
 
-      {/* Video Modal */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-card border-border">
-          <DialogTitle className="sr-only">{video.title}</DialogTitle>
-          <div className="relative">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="aspect-video">
-              <iframe
-                src={video.videoUrl}
-                title={video.title}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-            <div className="p-6">
-              <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-3 inline-block">
-                {video.category}
-              </span>
-              <h2 className="font-display text-2xl mb-2">{video.title}</h2>
-              <p className="text-muted-foreground">{video.description}</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Video Player Modal */}
+      <VideoPlayerModal 
+        video={video} 
+        isOpen={isOpen} 
+        onClose={() => setIsOpen(false)} 
+      />
     </>
   );
 };
