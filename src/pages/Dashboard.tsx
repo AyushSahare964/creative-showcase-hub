@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { 
   LayoutDashboard, 
@@ -16,7 +16,8 @@ import {
   X,
   Upload,
   Link as LinkIcon,
-  Video
+  Video,
+  Camera
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { useData } from "@/context/DataContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -37,19 +39,21 @@ import {
 type Tab = "overview" | "videos" | "submissions" | "settings";
 type VideoInputMode = "url" | "upload";
 
-const Dashboard = () => {
+const Dashboard = forwardRef<HTMLDivElement>((_, ref) => {
   const { videos, submissions, profile, addVideo, deleteVideo, updateSubmissionStatus, setProfile } = useData();
   const { user, loading, isEditor, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>("");
   const [videoInputMode, setVideoInputMode] = useState<VideoInputMode>("upload");
@@ -77,6 +81,62 @@ const Dashboard = () => {
       description: "You have been signed out successfully.",
     });
     navigate("/");
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `avatar-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("video-thumbnails")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("video-thumbnails")
+        .getPublicUrl(filePath);
+
+      setProfile({ ...profile, avatar: publicUrl });
+      
+      toast({
+        title: "Profile photo uploaded",
+        description: "Your profile photo has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload profile photo.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,7 +372,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex scroll-smooth">
       {/* Mobile Menu Button */}
       <button
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-card rounded-lg border border-border"
@@ -381,7 +441,7 @@ const Dashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 lg:p-8 overflow-auto">
+      <main className="flex-1 p-6 lg:p-8 overflow-auto scroll-smooth">
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <motion.div
@@ -774,6 +834,58 @@ const Dashboard = () => {
 
             <div className="glass-card rounded-xl p-6 max-w-2xl">
               <div className="space-y-6">
+                {/* Profile Photo Upload */}
+                <div>
+                  <label className="block text-sm font-medium mb-4">Profile Photo</label>
+                  <div className="flex items-center gap-6">
+                    <div className="relative group">
+                      <Avatar className="w-24 h-24">
+                        {profile.avatar ? (
+                          <AvatarImage src={profile.avatar} alt={profile.name} />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/20 text-primary text-2xl font-display">
+                          {profile.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <button
+                        onClick={() => avatarInputRef.current?.click()}
+                        disabled={uploadingAvatar}
+                        className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Camera className="w-6 h-6 text-white" />
+                      </button>
+                    </div>
+                    <div>
+                      <Button
+                        variant="outline"
+                        onClick={() => avatarInputRef.current?.click()}
+                        disabled={uploadingAvatar}
+                      >
+                        {uploadingAvatar ? (
+                          <span className="flex items-center gap-2">
+                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+                            Uploading...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <Upload className="w-4 h-4" />
+                            Upload Photo
+                          </span>
+                        )}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Recommended: 400x400px, max 5MB
+                      </p>
+                    </div>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium mb-2">Name</label>
@@ -855,6 +967,8 @@ const Dashboard = () => {
       </main>
     </div>
   );
-};
+});
+
+Dashboard.displayName = "Dashboard";
 
 export default Dashboard;

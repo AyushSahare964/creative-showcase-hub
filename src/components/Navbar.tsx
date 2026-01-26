@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Play, LayoutDashboard } from "lucide-react";
+import { Menu, X, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -15,6 +15,7 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -26,13 +27,38 @@ export const Navbar = () => {
 
   const scrollToSection = (href: string) => {
     setIsOpen(false);
+    
+    if (href === "/") {
+      navigate("/");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    
     if (href.startsWith("/#")) {
       const id = href.replace("/#", "");
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+      
+      // If we're not on home page, navigate first
+      if (location.pathname !== "/") {
+        navigate("/");
+        // Wait for navigation then scroll
+        setTimeout(() => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth" });
+          }
+        }, 100);
+      } else {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
       }
     }
+  };
+
+  const handleDashboardClick = () => {
+    setIsOpen(false);
+    navigate("/dashboard");
   };
 
   return (
@@ -54,11 +80,13 @@ export const Navbar = () => {
               <span className="font-display text-sm md:text-xl tracking-wider">SANSHAG KARWADE</span>
             </Link>
             {/* Dashboard button - visible on mobile next to logo */}
-            <Link to="/dashboard" className="md:hidden">
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Editor Dashboard">
-                <LayoutDashboard className="w-4 h-4" />
-              </Button>
-            </Link>
+            <button 
+              onClick={handleDashboardClick}
+              className="md:hidden p-2 hover:bg-secondary rounded-lg transition-colors"
+              title="Editor Dashboard"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Desktop Nav */}
@@ -86,6 +114,7 @@ export const Navbar = () => {
           <button
             className="md:hidden p-2"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label="Toggle menu"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

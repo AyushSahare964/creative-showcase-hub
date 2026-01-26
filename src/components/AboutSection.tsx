@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Youtube, Instagram, Linkedin, Twitter, MapPin, Mail, Phone } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const skills = [
   { name: "Premiere Pro", level: 95 },
@@ -36,11 +37,20 @@ export const AboutSection = () => {
             <div className="aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5 border border-border/50">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-32 h-32 rounded-full bg-primary/20 mx-auto mb-6 flex items-center justify-center">
-                    <span className="font-display text-5xl text-primary">
-                      {profile.name.charAt(0)}
-                    </span>
-                  </div>
+                  {profile.avatar ? (
+                    <Avatar className="w-40 h-40 mx-auto mb-6 ring-4 ring-primary/30">
+                      <AvatarImage src={profile.avatar} alt={profile.name} className="object-cover" />
+                      <AvatarFallback className="bg-primary/20 text-primary text-5xl font-display">
+                        {profile.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-primary/20 mx-auto mb-6 flex items-center justify-center">
+                      <span className="font-display text-5xl text-primary">
+                        {profile.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                   <h3 className="font-display text-3xl mb-2">{profile.name}</h3>
                   <p className="text-muted-foreground">{profile.title}</p>
                 </div>
