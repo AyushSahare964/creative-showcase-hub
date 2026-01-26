@@ -150,11 +150,11 @@ const Dashboard = () => {
       return;
     }
 
-    // Max 500MB for videos
-    if (file.size > 500 * 1024 * 1024) {
+    // Max 50MB for videos (reduced for reliable uploads)
+    if (file.size > 50 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please upload a video smaller than 500MB.",
+        description: "Please upload a video smaller than 50MB. For larger files, use YouTube/Vimeo URL option.",
         variant: "destructive",
       });
       return;
@@ -169,18 +169,59 @@ const Dashboard = () => {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `uploads/${fileName}`;
 
-      // Simulate progress (Supabase doesn't expose upload progress for small files)
-      const progressInterval = setInterval(() => {
-        setVideoUploadProgress((prev) => Math.min(prev + 10, 90));
-      }, 200);
+      // Use XMLHttpRequest for proper progress tracking
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("Not authenticated. Please log in again.");
+      }
 
-      const { error: uploadError } = await supabase.storage
-        .from("videos")
-        .upload(filePath, file);
+      const formData = new FormData();
+      formData.append('cacheControl', '3600');
+      formData.append('', file);
 
-      clearInterval(progressInterval);
+      const uploadPromise = new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setVideoUploadProgress(progress);
+          }
+        });
 
-      if (uploadError) throw uploadError;
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(filePath);
+          } else {
+            try {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.message || 'Upload failed'));
+            } catch {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload. Please check your connection and try again.'));
+        });
+
+        xhr.addEventListener('timeout', () => {
+          reject(new Error('Upload timed out. Please try a smaller file or use URL option.'));
+        });
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        xhr.open('POST', `${supabaseUrl}/storage/v1/object/videos/${filePath}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+        xhr.setRequestHeader('apikey', import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.timeout = 300000; // 5 minute timeout
+        xhr.send(file);
+      });
+
+      await uploadPromise;
 
       const { data: { publicUrl } } = supabase.storage
         .from("videos")
@@ -194,12 +235,14 @@ const Dashboard = () => {
         description: "Your video has been uploaded successfully.",
       });
     } catch (error: any) {
+      console.error("Video upload error:", error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload video.",
+        description: error.message || "Failed to upload video. Try using the URL option for larger files.",
         variant: "destructive",
       });
       setVideoFileName("");
+      setVideoUploadProgress(0);
     } finally {
       setUploadingVideo(false);
     }
