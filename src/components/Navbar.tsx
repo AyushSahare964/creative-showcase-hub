@@ -45,13 +45,21 @@ export const Navbar = () => {
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-lg shadow-primary/25">
-              <span className="font-display text-lg text-primary-foreground font-bold">SK</span>
-            </div>
-            <span className="font-display text-xl tracking-wider hidden sm:block">SANSHAG KARWADE</span>
-          </Link>
+          {/* Logo + Name + Dashboard (Mobile) */}
+          <div className="flex items-center gap-2 md:gap-3">
+            <Link to="/" className="flex items-center gap-2 md:gap-3 group">
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-lg shadow-primary/25">
+                <span className="font-display text-base md:text-lg text-primary-foreground font-bold">SK</span>
+              </div>
+              <span className="font-display text-sm md:text-xl tracking-wider">SANSHAG KARWADE</span>
+            </Link>
+            {/* Dashboard button - visible on mobile next to logo */}
+            <Link to="/dashboard" className="md:hidden">
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Editor Dashboard">
+                <LayoutDashboard className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
